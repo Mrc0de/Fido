@@ -1,8 +1,8 @@
 #include "Arduino.h"
-#include "heltec.h"   // Designed for a Heltec Lora32 V2
+#include <heltec.h>   // Designed for a Heltec Lora32 V2
                       // I avoid their library, I just want the parts, that might change.
                       // I'm not getting any license, I'll reverse engi one first
-/////////////////                      
+/////////////////
 // ServoPWM Stuff
 #include <Adafruit_PWMServoDriver.h>
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(0x40, Wire1);
@@ -21,8 +21,8 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(0x40, Wire1);
 // UPPER LEG SERVOS
 #define FRONT_L 0
 #define FRONT_R 1
-#define REAR_L 2
-#define REAR_R 3
+#define REAR_R 2
+#define REAR_L 3
 
 /////////////
 // Directions
@@ -37,7 +37,7 @@ void resetRearRight(int rev=0);
 // Globals
 //////////////
 // PSU Tapping
-int StdTapInterval = 10000;
+int StdTapInterval = 20000;
 bool TapServoPSU;
 unsigned long LastTapServoPSU = 0;
 bool TapMCUPSU;
@@ -46,7 +46,7 @@ bool demoFlip = false;
 
 
 
-void setup() {  
+void setup() {
   //////////////////////////////////////////////////////////////////////////
   // Enables OLED on I2C on pins: 4(OLED_SDA), 15(OLED_SCL) and 16(OLED_RST)
   Heltec.begin(true, false, true);
@@ -64,74 +64,52 @@ void setup() {
   Heltec.display->clear();
   Heltec.display->drawString(0, 0, "[INIT COMPLETE]");
   Heltec.display->drawString(0, 8, "[RESET WILL BEGIN]");
-  Heltec.display->drawString(0, 16, "[IN 5 SECONDS]");
+  Heltec.display->drawString(0, 16, "[IN 2 SECONDS]");
   Heltec.display->drawString(0, 24, "[PWROFF TO ABORT]");
-  Heltec.display->display();  
-  delay(5000);
-  Heltec.display->clear();
-  Heltec.display->drawString(0, 0, "[Running loop in 1s]");  
   Heltec.display->display();
-  delay(500);
+  delay(2000);
+  Heltec.display->clear();
+  Heltec.display->drawString(0, 0, "[Running loop in 1s]");
+  Heltec.display->display();
+  delay(1000);
   //////////////////
   // Servo PSU 'Key'
-  pinMode(ServoPSUKeyPin, OUTPUT);    
-  digitalWrite(ServoPSUKeyPin,HIGH);  // Set key HIGH  
-  delay(500);
-  TapServoBattery();
-  TapServoPSU = true;  
+  pinMode(ServoPSUKeyPin, OUTPUT);
+  digitalWrite(ServoPSUKeyPin,HIGH);  // Set key HIGH
+  delay(1000);
+  TapServoBattery();  // Turn on Servo Power
+  TapServoPSU = true;
   LastTapServoPSU = millis();
-  delay(500);  
+  delay(250);
   //////////////////
-  // Init PWM Object 
-  pwm.begin();  
+  // Init PWM Object
+  pwm.begin();
   pwm.setOscillatorFrequency(25000000);
   pwm.setPWMFreq(SERVO_FREQ);  // 1600 is the maximum PWM frequency
   // LEFT SIDE MOVES IN REVERSE DIRECTION (or legs go wrong way)
   // ie: RIGHT side is the RIGHT way (remember)
-  delay(10);
+  delay(100);
   // RESET THE LEGS
-  resetFrontLeft(1);
-  resetFrontRight(1);
-  resetRearLeft(1);
-  resetRearRight(1);
+  // Do first thing in loop
 }
 
-void loop() {    
-  // try not to block anywhere else
-  if ( millis() - LastTapServoPSU > StdTapInterval && TapServoPSU) {
-    TapServoBattery();  // tap every 20s to keep active       
-  }  
-  // Move 2,3 to MAX ( 0 )
-  // SWEEP TO MIN From MAX is 0 degrees 
-  Heltec.display->clear();
-  Heltec.display->drawString(0, 0, "[MAX TO MIN]" + String();
-  Heltec.display->display();
-//  for (uint16_t pulselen = SERVOMAX; pulselen > SERVOMIN+OFFSETMIN; pulselen--) {
-//    pwm.setPWM(2, 0, pulselen);
-//    pwm.setPWM(3, 0, pulselen);    
-//  }  
-//  Heltec.display->drawString(0, 24, "[MOVE DONE]");
-//  Heltec.display->display();
-  delay(15000);
-  
-  resetFrontLeft(demoFlip);
-  resetFrontRight(demoFlip);
-  resetRearLeft(demoFlip);
-  resetRearRight(demoFlip);
-  
-  // Move 2,3 to MIN ( 0 )
-//  // SWEEP TO MAX From MIN is 180 degrees 
-//  Heltec.display->clear();
-//  Heltec.display->drawString(0, 0, "[MIN TO MAX] [180]");
-//  Heltec.display->drawString(0, 12, "[30s delay]");
-//  Heltec.display->display();
-//  for (uint16_t pulselen = SERVOMIN; pulselen < SERVOMAX-OFFSETMAX; pulselen++) {
-//    pwm.setPWM(2, 0, pulselen);
-//    pwm.setPWM(3, 0, pulselen);    
-//  }  
-//  Heltec.display->drawString(0, 24, "[MOVE DONE]");
-//  Heltec.display->display();
-//  delay(1000);  
+void loop() {
+    // try not to block anywhere else
+    if ( millis() - LastTapServoPSU > StdTapInterval && TapServoPSU) {
+    TapServoBattery();  // tap every 20s to keep active
+    }
+    // Move 2,3 to MAX ( 0 )
+    // SWEEP TO MIN From MAX is 0 degrees
+    resetLegsDown(demoFlip);
+    Heltec.display->clear();
+    Heltec.display->drawString(0, 0, "[RESET LEGS " + String(demoFlip) + "]");
+    Heltec.display->display();
+    delay(5000);
+    if (demoFlip) {
+        demoFlip = false;
+    } else {
+        demoFlip = true;
+    }
 }
 
 
@@ -159,66 +137,73 @@ void DoubleTapServoBattery() {
 ///////////
 // Leg Work
 /////////////
-// Front Legs
-// FRONT_L (0)
-void resetFrontLeft(int rev) {
-  // Reset Front_L is a SWEEP from SMIN TO SMAX (Front Left, Reverse of Right numbers (and rear function) )
-  // Actual Movement is DOWN to LIMB MINIMUM
-  if ( !rev ) {
-    for (uint16_t pulselen = SERVOMIN; pulselen < SERVOMAX-OFFSETMAX; pulselen++) {
-      pwm.setPWM(FRONT_L, 0, pulselen);    
-    }  
-  } else {
-    for (uint16_t pulselen = SERVOMAX; pulselen < SERVOMIN+OFFSETMIN; pulselen--) {
-      pwm.setPWM(FRONT_L, 0, pulselen);    
+
+///////////
+// All Legs
+void resetLegsDown(bool reverse) {
+    if (!reverse) {
+        // Move all the legs DOWN position 90degrees to body
+        // The code WILL VARY for each servo due to orientation and positional needs
+        //////////
+        // FRONT_L
+        // Set Position DOWN
+        for (uint16_t pulselen = SERVOMIN; pulselen < SERVOMAX+OFFSETMAX; pulselen++) {
+            pwm.setPWM(FRONT_L, 0, pulselen);
+        }
+        //////////
+        // FRONT_R
+        // Set Position DOWN
+        for (uint16_t pulselen2 = SERVOMAX; pulselen2 > SERVOMIN+OFFSETMIN; pulselen2--) {
+            pwm.setPWM(FRONT_R, 0, pulselen2);
+        }
+        ////////////////////////////
+        // REAR LEGS
+        /////////
+        // REAR_L
+        // Set Position DOWN
+        for (uint16_t pulselen2 = SERVOMAX; pulselen2 > SERVOMIN+OFFSETMIN; pulselen2--) {
+            pwm.setPWM(REAR_L, 0, pulselen2);
+        }
+        /////////
+        // REAR_R
+        // Set Position DOWN
+        for (uint16_t pulselen = SERVOMIN; pulselen < SERVOMAX+OFFSETMAX; pulselen++) {
+            pwm.setPWM(REAR_R, 0, pulselen);
+        }
+    } else {
+        /////////////////////
+        // REVERSE DIRECTION
+        //////////
+        // FRONT_L
+        // Set Position UP
+        for (uint16_t pulselen2 = SERVOMAX; pulselen2 > SERVOMIN+OFFSETMIN; pulselen2--) {
+            pwm.setPWM(FRONT_L, 0, pulselen2);
+        }
+        //////////
+        // FRONT_R
+        // Set Position UP
+        for (uint16_t pulselen = SERVOMIN; pulselen < SERVOMAX+OFFSETMAX; pulselen++) {
+            pwm.setPWM(FRONT_R, 0, pulselen);
+        }
+        ////////////////////////////
+        // REAR LEGS
+        /////////
+        // REAR_L
+        // Set Position UP
+        for (uint16_t pulselen = SERVOMIN; pulselen < SERVOMAX+OFFSETMAX; pulselen++) {
+            pwm.setPWM(REAR_L, 0, pulselen);
+        }
+        /////////
+        // REAR_R
+        // Set Position UP
+        for (uint16_t pulselen2 = SERVOMAX; pulselen2 > SERVOMIN+OFFSETMIN; pulselen2--) {
+            pwm.setPWM(REAR_R, 0, pulselen2);
+        }
     }
-  }
 }
 
-//////////////
-// FRONT_R (1)
-void resetFrontRight(int rev) {
-  // Reset Front_R is a SWEEP from SMIN TO SMAX (Front Left, Reverse of Right numbers (and rear function) )
-  // Actual Movement is DOWN to LIMB MINIMUM
-  if ( !rev) {
-    for (uint16_t pulselen = SERVOMAX; pulselen > SERVOMIN+OFFSETMIN; pulselen--) {
-      pwm.setPWM(FRONT_R, 0, pulselen);    
-    }  
-  } else {
-    for (uint16_t pulselen = SERVOMIN; pulselen > SERVOMAX+OFFSETMAX; pulselen++) {
-      pwm.setPWM(FRONT_R, 0, pulselen);    
-    }
-  }
-}
 
-/////////
-// REAR_L
-void resetRearLeft(int rev) {
-  //Set to DOWN, 90deg to body, From MAX to MIN (Clockwise)
-  if ( !rev) {
-    for (uint16_t pulselen = SERVOMAX; pulselen > SERVOMIN+OFFSETMIN; pulselen--) {
-      pwm.setPWM(REAR_L, 0, pulselen);    
-    }  
-  } else {
-    for (uint16_t pulselen = SERVOMIN; pulselen > SERVOMAX+OFFSETMAX; pulselen++) {
-      pwm.setPWM(REAR_L, 0, pulselen);    
-    }
-  }  
-}
 
-/////////
-// REAR_R
-void resetRearRight(int rev) {
-  if ( !rev ) {
-    for (uint16_t pulselen = SERVOMIN; pulselen < SERVOMAX-OFFSETMAX; pulselen++) {
-      pwm.setPWM(REAR_R, 0, pulselen);    
-    }  
-  } else {
-    for (uint16_t pulselen = SERVOMAX; pulselen < SERVOMIN+OFFSETMIN; pulselen--) {
-      pwm.setPWM(REAR_R, 0, pulselen);    
-    }
-  }  
-}
 
 ////////////////////////////////////////////////////////////
 /// EXAMPLES FOR SWEEPING BELOW (and other junk below that)
